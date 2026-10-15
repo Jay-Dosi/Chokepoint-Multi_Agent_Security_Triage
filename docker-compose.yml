@@ -1,0 +1,117 @@
+services:
+  falkordb:
+    image: falkordb/falkordb:latest
+    container_name: chokepoint-falkordb
+    ports:
+      - "6379:6379"
+      - "3000:3000"
+    volumes:
+      - falkor-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
+
+  mcp:
+    build:
+      context: ./backend
+    container_name: chokepoint-mcp
+    command:
+      - python
+      - -m
+      - mcp_server.server
+      - --transport
+      - streamable-http
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8765"
+    environment:
+      FALKORDB_HOST: falkordb
+      FALKORDB_PORT: "6379"
+      GRAPH_NAME: ${GRAPH_NAME:-chokepoint}
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: "8765"
+      EMBEDDINGS: ${EMBEDDINGS:-fastembed}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}
+      OUTBOX_DIR: /data/outbox
+      SEED_SCALE: ${SEED_SCALE:-1}
+    volumes:
+      - outbox:/data
+    ports:
+      - "8765:8765"
+    depends_on:
+      falkordb:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import socket; socket.create_connection(('127.0.0.1', 8765), 3).close()"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    container_name: chokepoint-backend
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5-5}
+      AGENT_MODE: ${AGENT_MODE:-live}
+      FALKORDB_HOST: falkordb
+      FALKORDB_PORT: "6379"
+      GRAPH_NAME: ${GRAPH_NAME:-chokepoint}
+      MCP_URL: ${MCP_URL:-http://mcp:8765/mcp}
+      EMBEDDINGS: ${EMBEDDINGS:-fastembed}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}
+      SEED_SCALE: ${SEED_SCALE:-1}
+      OUTBOX_DIR: /data/outbox
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_REPO: ${GITHUB_REPO:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080,http://localhost:5173}
+    volumes:
+      - outbox:/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      falkordb:
+        condition: service_healthy
+      mcp:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/api/health > /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: chokepoint-frontend
+    ports:
+      - "8080:8080"
+    depends_on:
+      backend:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  falkor-data:
+  outbox:
