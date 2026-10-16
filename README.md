@@ -60,9 +60,13 @@ Two rules hold everywhere:
 
 ```bash
 cp .env.example .env
-# Either put a key in ANTHROPIC_API_KEY, or set AGENT_MODE=scripted.
+# Either put a key in GEMINI_API_KEY, or set AGENT_MODE=scripted.
 docker compose up --build
 ```
+
+The agents run on **Gemini 2.5 Flash Lite** (`GEMINI_MODEL`, any Gemini model id works).
+Get a key at <https://aistudio.google.com/apikey>. `.env` is gitignored; `.env.example` is
+committed, so never put a real key in it.
 
 Then open <http://localhost:8080>.
 
@@ -78,7 +82,7 @@ The backend waits for FalkorDB, seeds the graph on first boot if it is empty, an
 MCP server in the background. `make up`, `make seed`, `make delta`, `make evals`, `make logs` and
 `make mcp-stdio` wrap the same operations.
 
-**No API key?** Leave `ANTHROPIC_API_KEY` empty. `/api/health` reports it, the masthead shows a
+**No API key?** Leave `GEMINI_API_KEY` empty. `/api/health` reports it, the masthead shows a
 `scripted run` badge, and the agents run a fixed per-scenario sequence of **real MCP tool calls**
 against the live graph. Every number on screen still comes from the graph.
 
@@ -247,7 +251,14 @@ error verbatim.
 
 **Missing API key.** `/api/health` reports `agent_mode: scripted` with a `mode_warning`, and the UI
 shows a `scripted run` badge. Nothing crashes. Set `AGENT_MODE=scripted` in `.env` to make that the
-intent rather than a fallback.
+intent rather than a fallback. Note that Compose reads `.env`, not `.env.example` — a key in the
+example file has no effect.
+
+**Gemini rejects a tool schema.** Gemini declares tools with an OpenAPI 3.0 subset rather than raw
+JSON Schema, so `app/orchestrator/providers/gemini_provider.py` rewrites each MCP schema: it inlines
+`$ref`/`$defs`, turns `anyOf[X, null]` into `nullable`, upper-cases type names and drops keywords
+Gemini does not accept. If you add a tool argument shape that trips it up, `to_gemini_schema` is the
+one place to fix.
 
 **Embeddings on first run.** `fastembed` downloads `BAAI/bge-small-en-v1.5` the first time a lesson
 is embedded, which takes a few tens of seconds and needs network access. Without it the status

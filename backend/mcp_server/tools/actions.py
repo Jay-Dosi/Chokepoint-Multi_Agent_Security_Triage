@@ -334,7 +334,13 @@ def propose_action(
         investigation_id = str(row["investigation_id"])
         finding_ids = [str(f) for f in (row.get("finding_ids") or [])]
         services = _finding_services(finding_ids)
-        primary_service = sorted(set(services.values()))[0] if services else ""
+        # Route on the verdict's first finding, which is the one the Scribe led
+        # with. Sorting the services alphabetically instead would hand a ticket
+        # about the entry service to whoever happens to own a transit hop.
+        primary_service = next(
+            (services[fid] for fid in finding_ids if fid in services),
+            sorted(set(services.values()))[0] if services else "",
+        )
         owner: dict[str, Any] | None = None
         if primary_service:
             owner_outcome = ro_query(OWNER_CYPHER, {"sid": primary_service})

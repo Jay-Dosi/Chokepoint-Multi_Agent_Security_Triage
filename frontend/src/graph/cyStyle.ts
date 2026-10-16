@@ -4,7 +4,7 @@
  * per-node glyph values travel in element data.
  */
 
-import type { ElementDefinition, Stylesheet } from 'cytoscape';
+import type { ElementDefinition, StylesheetStyle } from 'cytoscape';
 
 import type { GraphEdge, GraphNode } from '../api/types';
 import { glyphFor } from './glyphs';
@@ -81,7 +81,7 @@ export function toElements(nodes: GraphNode[], edges: GraphEdge[]): ElementDefin
   return elements;
 }
 
-export function buildStylesheet(): Stylesheet[] {
+export function buildStylesheet(): StylesheetStyle[] {
   return [
     {
       selector: 'node',
@@ -165,5 +165,5 @@ export function buildStylesheet(): Stylesheet[] {
       selector: 'edge.neighbour',
       style: { 'line-color': INK_2(), 'target-arrow-color': INK_2() },
     },
-  ] as Stylesheet[];
+  ] as StylesheetStyle[];
 }

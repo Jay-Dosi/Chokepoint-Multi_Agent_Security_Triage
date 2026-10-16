@@ -21,15 +21,11 @@ export interface Token {
   kind: 'kw' | 'fn' | 'param' | 'str' | 'comment' | 'plain';
 }
 
-const PATTERN = new RegExp(
-  [
-    '(\/\/[^\n]*)',
-    "('(?:[^'\\]|\\.)*')",
-    '(\$[A-Za-z_][A-Za-z0-9_]*)',
-    '([A-Za-z_][A-Za-z0-9_.]*)',
-  ].join('|'),
-  'g',
-);
+// Written as one literal rather than assembled from strings: the alternation
+// needs backslashes, and building it by concatenation invites exactly the
+// double-escaping bug that makes the whole module throw on load.
+// Groups, in order: line comment, single-quoted string, $parameter, word.
+const PATTERN = /(\/\/[^\n]*)|('(?:[^'\\]|\\.)*')|(\$[A-Za-z_][A-Za-z0-9_]*)|([A-Za-z_][A-Za-z0-9_.]*)/g;
 
 export function tintCypher(source: string): Token[] {
   const tokens: Token[] = [];

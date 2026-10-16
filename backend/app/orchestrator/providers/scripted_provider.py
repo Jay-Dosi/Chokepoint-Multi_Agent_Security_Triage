@@ -108,8 +108,17 @@ class _Plan:
 
 
 def _data(result: dict[str, Any]) -> dict[str, Any]:
+    """Tool payload, preferring the un-clipped `full` view where a tool sends one.
+
+    `data` is clipped to the LLM budget, so reading it alone can silently lose
+    the hypothesis or step a verdict needs to cite.
+    """
     data = result.get("data")
-    return data if isinstance(data, dict) else {}
+    merged = dict(data) if isinstance(data, dict) else {}
+    full = result.get("full")
+    if isinstance(full, dict):
+        merged.update(full)
+    return merged
 
 
 def _paths(result: dict[str, Any]) -> list[dict[str, Any]]:

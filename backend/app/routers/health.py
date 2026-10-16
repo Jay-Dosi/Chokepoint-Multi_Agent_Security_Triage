@@ -32,7 +32,7 @@ async def health() -> HealthResponse:
         mcp_tools=len(tools),
         agent_mode=settings.effective_mode,
         configured_agent_mode=settings.agent_mode,
-        model=settings.anthropic_model if settings.effective_mode == "live" else "scripted",
+        model=settings.gemini_model if settings.effective_mode == "live" else "scripted",
         mode_warning=settings.mode_warning or (client.last_error if not tools else ""),
         embeddings=EmbeddingStatus(**embedder().status()),
         capabilities=capabilities,

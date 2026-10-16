@@ -139,7 +139,7 @@ def create_investigation(goal: str, preset: str) -> dict[str, str]:
             "mode": mode,
             "now": _now(),
             "scan_id": current_scan_id(),
-            "model": settings.anthropic_model if mode == "live" else "scripted",
+            "model": settings.gemini_model if mode == "live" else "scripted",
             "preset": preset or classify(goal, ""),
         },
     )
@@ -693,7 +693,7 @@ class Investigation:
                 {
                     "goal": self.goal,
                     "mode": settings.effective_mode,
-                    "model": settings.anthropic_model if settings.effective_mode == "live" else "scripted",
+                    "model": settings.gemini_model if settings.effective_mode == "live" else "scripted",
                     "preset": self.preset,
                     "provider": self.provider.name,
                 },

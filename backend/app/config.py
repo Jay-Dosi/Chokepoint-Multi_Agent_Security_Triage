@@ -16,8 +16,8 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    anthropic_api_key: str = ""
-    anthropic_model: str = "claude-sonnet-5-5"
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash-lite"
     agent_mode: str = "live"
 
     falkordb_host: str = "localhost"
@@ -61,12 +61,12 @@ class Settings(BaseSettings):
         """`live` only when a key is actually present, otherwise `scripted`."""
         if self.agent_mode.strip().lower() == "scripted":
             return "scripted"
-        return "live" if self.anthropic_api_key.strip() else "scripted"
+        return "live" if self.gemini_api_key.strip() else "scripted"
 
     @property
     def mode_warning(self) -> str:
-        if self.agent_mode.strip().lower() == "live" and not self.anthropic_api_key.strip():
-            return "ANTHROPIC_API_KEY is empty; falling back to scripted agents."
+        if self.agent_mode.strip().lower() == "live" and not self.gemini_api_key.strip():
+            return "GEMINI_API_KEY is empty; falling back to scripted agents."
         return ""
 
     @property

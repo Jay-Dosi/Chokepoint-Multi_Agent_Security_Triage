@@ -385,6 +385,17 @@ def list_blackboard(
         touched_ids=[p["target"] for p in path_rows] + [p["entry"] for p in path_rows],
         rows=len(step_rows) + len(hypothesis_rows) + len(challenge_rows),
         latency_ms=(time.perf_counter() - started) * 1000.0,
+        # `data` is clipped to the LLM budget, which can drop the very
+        # hypothesis a verdict has to adjudicate. The orchestrator reads the
+        # complete board from here; the provider strips it before the model.
+        extra={
+            "full": {
+                "steps": step_rows,
+                "attack_paths": path_rows,
+                "hypotheses": hypothesis_rows,
+                "challenges": challenge_rows,
+            }
+        },
     )
 
 

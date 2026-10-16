@@ -1,4 +1,4 @@
-"""LLM providers: the live Anthropic loop and the scripted offline loop."""
+"""LLM providers: the live Gemini loop and the scripted offline loop."""
 
 from __future__ import annotations
 
@@ -33,9 +33,9 @@ def _scripted() -> LLMProvider:
 
 @lru_cache(maxsize=2)
 def _live() -> LLMProvider:
-    from .anthropic_provider import AnthropicProvider
+    from .gemini_provider import GeminiProvider
 
-    return AnthropicProvider()
+    return GeminiProvider()
 
 
 def get_provider(mode: str | None = None) -> LLMProvider:
@@ -43,11 +43,11 @@ def get_provider(mode: str | None = None) -> LLMProvider:
     wanted = (mode or settings.effective_mode).strip().lower()
     if wanted != "live":
         return _scripted()
-    if not settings.anthropic_api_key.strip():
-        log.warning("live mode requested without ANTHROPIC_API_KEY; using the scripted provider")
+    if not settings.gemini_api_key.strip():
+        log.warning("live mode requested without GEMINI_API_KEY; using the scripted provider")
         return _scripted()
     try:
         return _live()
     except Exception as exc:  # noqa: BLE001 - missing SDK must not break a run
-        log.warning("could not start the Anthropic provider (%s); using the scripted provider", exc)
+        log.warning("could not start the Gemini provider (%s); using the scripted provider", exc)
         return _scripted()

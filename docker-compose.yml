@@ -63,8 +63,8 @@ services:
       context: ./backend
     container_name: chokepoint-backend
     environment:
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5-5}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash-lite}
       AGENT_MODE: ${AGENT_MODE:-live}
       FALKORDB_HOST: falkordb
       FALKORDB_PORT: "6379"
