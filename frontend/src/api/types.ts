@@ -555,6 +555,7 @@ export type StreamEvent =
         safety_valve: boolean;
         headline: string;
         finding_ids: string[];
+        services: string[];
         claims: ClaimModel[];
         grounding: Record<string, unknown>;
         evidence_path_ids: string[];

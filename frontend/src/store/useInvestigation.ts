@@ -289,6 +289,26 @@ function applyEvent(event: StreamEvent, set: Setter, get: () => InvestigationSta
       }));
       break;
     case 'verdict': {
+      // The SSE payload includes raw claims (from tool args) and a grounding report.
+      // Merge grounding info into each claim so the UI has grounded/failures.
+      const rawClaims = event.payload.claims ?? [];
+      const grounding = event.payload.grounding ?? {};
+      const groundingClaims = (grounding.claims ?? []) as Array<{
+        claim_id: string;
+        grounded: boolean;
+        failures: string[];
+      }>;
+      const groundedById = new Map(groundingClaims.map((c) => [c.claim_id, c]));
+
+      const claims: VerdictModel['claims'] = rawClaims.map((claim: any) => ({
+        id: claim.id ?? '',
+        text: claim.text ?? '',
+        cites: claim.cites ?? [],
+        node_ids: claim.node_ids ?? [],
+        grounded: groundedById.get(claim.id)?.grounded ?? true,
+        failures: groundedById.get(claim.id)?.failures ?? [],
+      }));
+
       const incoming: VerdictModel = {
         id: event.payload.id,
         kind: event.payload.kind,
@@ -300,8 +320,8 @@ function applyEvent(event: StreamEvent, set: Setter, get: () => InvestigationSta
         created_at: event.ts,
         headline: event.payload.headline,
         finding_ids: event.payload.finding_ids,
-        services: [],
-        claims: event.payload.claims,
+        services: event.payload.services ?? [],
+        claims,
         evidence_path_ids: event.payload.evidence_path_ids,
         feedback: null,
       };

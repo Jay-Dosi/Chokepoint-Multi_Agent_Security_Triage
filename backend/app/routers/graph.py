@@ -19,6 +19,7 @@ from app.models import (
     PublicIngress,
     SubgraphResponse,
 )
+from app.config import settings
 from app.db import ro_query
 from mcp_server.attack import enumerate_paths
 from mcp_server.graph_ops import load_projection
@@ -34,19 +35,22 @@ MATCH (n)
 WHERE n.id IN $ids
 RETURN n.id AS id, labels(n)[0] AS label, properties(n) AS props
 """
-OUT_EDGES_CYPHER = """
-UNWIND $ids AS nid
-MATCH (a) WHERE a.id = nid
+# Use IN clause instead of UNWIND + MATCH for better performance
+EDGES_BETWEEN_CYPHER = """
 MATCH (a)-[r]->(b)
-WHERE b.id IS NOT NULL
+WHERE a.id IN $ids AND b.id IN $ids
+RETURN a.id AS source, b.id AS target, type(r) AS type, properties(r) AS props
+LIMIT $cap
+"""
+OUT_EDGES_CYPHER = """
+MATCH (a)-[r]->(b)
+WHERE a.id IN $ids AND b.id IS NOT NULL
 RETURN a.id AS source, b.id AS target, type(r) AS type, properties(r) AS props
 LIMIT $cap
 """
 IN_EDGES_CYPHER = """
-UNWIND $ids AS nid
-MATCH (b) WHERE b.id = nid
 MATCH (a)-[r]->(b)
-WHERE a.id IS NOT NULL
+WHERE b.id IN $ids AND a.id IS NOT NULL
 RETURN a.id AS source, b.id AS target, type(r) AS type, properties(r) AS props
 LIMIT $cap
 """
@@ -62,27 +66,27 @@ def _clean_props(props: Any) -> dict[str, Any]:
     }
 
 
-def _edges_between(ids: list[str]) -> list[GraphEdge]:
+def _edges_between(ids: list[str], timeout_ms: int | None = None) -> list[GraphEdge]:
     if not ids:
         return []
     seen: dict[str, GraphEdge] = {}
     wanted = set(ids)
-    for cypher in (OUT_EDGES_CYPHER, IN_EDGES_CYPHER):
-        for row in ro_query(cypher, {"ids": ids, "cap": EDGE_CAP}).dicts():
-            source, target = str(row["source"]), str(row["target"])
-            if source not in wanted or target not in wanted:
-                continue
-            rel = str(row["type"])
-            key = f"{source}|{rel}|{target}"
-            if key in seen:
-                continue
-            seen[key] = GraphEdge(
-                id=key, source=source, target=target, type=rel, props=_clean_props(row.get("props"))
-            )
+    for row in ro_query(EDGES_BETWEEN_CYPHER, {"ids": ids, "cap": EDGE_CAP}, timeout_ms=timeout_ms).dicts():
+        source, target = str(row["source"]), str(row["target"])
+        # The IN clause already filters both source and target, but double-check
+        if source not in wanted or target not in wanted:
+            continue
+        rel = str(row["type"])
+        key = f"{source}|{rel}|{target}"
+        if key in seen:
+            continue
+        seen[key] = GraphEdge(
+            id=key, source=source, target=target, type=rel, props=_clean_props(row.get("props"))
+        )
     return list(seen.values())
 
 
-def _expand(ids: list[str], hops: int) -> list[str]:
+def _expand(ids: list[str], hops: int, timeout_ms: int | None = None) -> list[str]:
     frontier = list(dict.fromkeys(ids))
     collected = list(frontier)
     for _ in range(max(0, hops)):
@@ -90,7 +94,7 @@ def _expand(ids: list[str], hops: int) -> list[str]:
             break
         neighbours: list[str] = []
         for cypher in (OUT_EDGES_CYPHER, IN_EDGES_CYPHER):
-            for row in ro_query(cypher, {"ids": frontier, "cap": EDGE_CAP}).dicts():
+            for row in ro_query(cypher, {"ids": frontier, "cap": EDGE_CAP}, timeout_ms=timeout_ms).dicts():
                 for candidate in (str(row["source"]), str(row["target"])):
                     if candidate not in collected:
                         collected.append(candidate)
@@ -99,9 +103,9 @@ def _expand(ids: list[str], hops: int) -> list[str]:
     return collected
 
 
-def _subgraph(ids: list[str], hops: int) -> SubgraphResponse:
+def _subgraph(ids: list[str], hops: int, timeout_ms: int | None = None) -> SubgraphResponse:
     started = time.perf_counter()
-    collected = _expand(ids, hops)
+    collected = _expand(ids, hops, timeout_ms=timeout_ms)
     truncated = len(collected) > NODE_CAP
     hidden = max(0, len(collected) - NODE_CAP)
     kept = collected[:NODE_CAP]
@@ -111,12 +115,12 @@ def _subgraph(ids: list[str], hops: int) -> SubgraphResponse:
             label=str(row.get("label") or "Unknown"),
             props=_clean_props(row.get("props")),
         )
-        for row in ro_query(NODES_CYPHER, {"ids": kept}).dicts()
+        for row in ro_query(NODES_CYPHER, {"ids": kept}, timeout_ms=timeout_ms).dicts()
     ]
     present = [n.id for n in nodes]
     return SubgraphResponse(
         nodes=nodes,
-        edges=_edges_between(present),
+        edges=_edges_between(present, timeout_ms=timeout_ms),
         truncated=truncated,
         hidden_nodes=hidden,
         latency_ms=round((time.perf_counter() - started) * 1000.0, 2),
@@ -183,7 +187,7 @@ def _focus(kind: str) -> SubgraphResponse:
         ids += [gid for gid, g in projection.ingress.items() if g.get("public")]
         ids += [sid for sid, store in projection.stores.items() if store.get("crown_jewel")]
     unique = [i for i in dict.fromkeys(ids) if i][:120]
-    return _subgraph(unique, hops=0)
+    return _subgraph(unique, hops=0, timeout_ms=settings.cypher_timeout_ms)
 
 
 def _naive(limit: int) -> NaiveViewResponse:
@@ -224,7 +228,7 @@ async def subgraph(
     wanted = [part.strip() for part in ids.split(",") if part.strip()]
     if not wanted:
         return SubgraphResponse()
-    return await asyncio.to_thread(_subgraph, wanted[:60], hops)
+    return await asyncio.to_thread(_subgraph, wanted[:60], hops, settings.cypher_timeout_ms)
 
 
 @router.get("/focus", response_model=SubgraphResponse)

@@ -47,13 +47,14 @@ export function BriefPane({
   loading,
   mcpError,
 }: BriefPaneProps) {
-  const lessons = brief?.lessons.length ? brief.lessons : liveLessons;
+  const lessons = brief?.lessons?.length ? brief.lessons : (liveLessons ?? []);
   const diff = brief?.diff;
+  const safeTools = tools ?? [];
   const grouped = GROUP_ORDER.map((group) => ({
     group,
-    tools: tools.filter((tool) => tool.group === group),
+    tools: safeTools.filter((tool) => tool.group === group),
   })).filter((entry) => entry.tools.length > 0);
-  const usedCount = tools.filter((tool) => (toolUsage[tool.name] ?? 0) > 0).length;
+  const usedCount = safeTools.filter((tool) => (toolUsage[tool.name] ?? 0) > 0).length;
 
   return (
     <div className="pane-scroll">
@@ -115,11 +116,11 @@ export function BriefPane({
 
       <section className="brief-section">
         <span className="label">
-          Toolbelt · {usedCount}/{tools.length} used
+          Toolbelt · {usedCount}/{safeTools.length} used
         </span>
         {mcpError ? (
           <p className="mono-sm">MCP server unreachable: {mcpError}</p>
-        ) : tools.length === 0 ? (
+        ) : safeTools.length === 0 ? (
           <Loading what="discovering tools" />
         ) : (
           <div className="toolbelt">

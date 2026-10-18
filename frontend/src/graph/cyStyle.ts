@@ -42,7 +42,8 @@ export function edgeKey(edge: GraphEdge): string {
   return `${edge.source}|${edge.type}|${edge.target}`;
 }
 
-export function toElements(nodes: GraphNode[], edges: GraphEdge[]): ElementDefinition[] {
+export function toElements(nodes: GraphNode[] | undefined, edges: GraphEdge[] | undefined): ElementDefinition[] {
+  if (!nodes || !edges) return [];
   const present = new Set(nodes.map((node) => node.id));
   const elements: ElementDefinition[] = nodes.map((node) => {
     const spec = glyphFor(node.label, node.props);
