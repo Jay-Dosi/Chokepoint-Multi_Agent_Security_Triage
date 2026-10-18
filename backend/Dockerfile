@@ -22,9 +22,11 @@ RUN pip install --no-cache-dir "fastembed>=0.3.6,<1.0" \
 COPY app ./app
 COPY mcp_server ./mcp_server
 COPY pyproject.toml ./
+COPY entrypoint.sh ./
+RUN chmod +x entrypoint.sh
 
 RUN mkdir -p /data/outbox
 
 EXPOSE 8000 8765
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
+CMD ["./entrypoint.sh"]

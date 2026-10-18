@@ -20,7 +20,12 @@ import type {
   VerdictKind,
 } from './types';
 
-export const API_BASE = '/api';
+// Local dev and the Docker build leave VITE_API_BASE unset, so this stays
+// '/api' and nginx (or the Vite dev proxy) routes it to the backend. A
+// static-site deploy (no proxy in front of it) sets VITE_API_BASE to the
+// backend's own public URL at build time, e.g. https://chokepoint-api.onrender.com
+const configuredBase = (import.meta.env.VITE_API_BASE ?? '').trim().replace(/\/+$/, '');
+export const API_BASE = `${configuredBase}/api`;
 
 export class ApiError extends Error {
   readonly status: number;

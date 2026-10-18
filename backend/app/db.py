@@ -63,7 +63,21 @@ def client() -> FalkorDB:
     global _client
     with _lock:
         if _client is None:
-            _client = FalkorDB(host=settings.falkordb_host, port=settings.falkordb_port)
+            # Username/password/SSL are only passed when set, so a local
+            # FalkorDB with no auth (the default in docker-compose.yml)
+            # keeps working exactly as before. A managed instance (e.g.
+            # FalkorDB Cloud) sets all three via environment variables.
+            kwargs: dict[str, Any] = {
+                "host": settings.falkordb_host,
+                "port": settings.falkordb_port,
+            }
+            if settings.falkordb_username.strip():
+                kwargs["username"] = settings.falkordb_username.strip()
+            if settings.falkordb_password.strip():
+                kwargs["password"] = settings.falkordb_password.strip()
+            if settings.falkordb_ssl:
+                kwargs["ssl"] = True
+            _client = FalkorDB(**kwargs)
         return _client
 
 

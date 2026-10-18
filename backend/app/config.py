@@ -22,6 +22,9 @@ class Settings(BaseSettings):
 
     falkordb_host: str = "localhost"
     falkordb_port: int = 6379
+    falkordb_username: str = ""
+    falkordb_password: str = ""
+    falkordb_ssl: bool = False
     graph_name: str = "chokepoint"
 
     mcp_url: str = "http://localhost:8765/mcp"
