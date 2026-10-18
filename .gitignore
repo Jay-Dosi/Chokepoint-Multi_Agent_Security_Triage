@@ -15,3 +15,7 @@ frontend/dist/
 .env
 outbox/
 data/
+
+PRD.md
+
+video/

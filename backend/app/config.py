@@ -22,6 +22,9 @@ class Settings(BaseSettings):
 
     falkordb_host: str = "localhost"
     falkordb_port: int = 6379
+    falkordb_username: str = ""
+    falkordb_password: str = ""
+    falkordb_ssl: bool = False
     graph_name: str = "chokepoint"
 
     mcp_url: str = "http://localhost:8765/mcp"
@@ -52,7 +55,7 @@ class Settings(BaseSettings):
     path_candidate_limit: int = 4000
     tool_payload_budget_bytes: int = 6144
     cypher_row_cap: int = 200
-    cypher_timeout_ms: int = 5000
+    cypher_timeout_ms: int = 30000
 
     sim_graph_prefix: str = Field(default="sim_", description="Prefix for scratch counterfactual graphs.")
 
